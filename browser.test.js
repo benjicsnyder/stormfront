@@ -27,8 +27,8 @@ const assert=require("node:assert/strict");
     const call=(method,params={},sessionId)=>new Promise((resolve,reject)=>{
       const current=++id;pending.set(current,{resolve,reject});socket.send(JSON.stringify({id:current,method,params,sessionId}));
     });
-    async function check(route,attribute){
-      const {targetId}=await call("Target.createTarget",{url:base+route});
+    async function check(route,attribute,origin=base){
+      const {targetId}=await call("Target.createTarget",{url:origin.replace(/\/$/,"")+route});
       const {sessionId}=await call("Target.attachToTarget",{targetId,flatten:true});
       await call("Runtime.enable",{},sessionId);await call("Page.enable",{},sessionId);
       let value;
@@ -47,7 +47,7 @@ const assert=require("node:assert/strict");
       console.log("PASS browser "+route+" "+(value.players?value.players+" human connections":"10 gameplay regressions"));
       await call("Target.closeTarget",{targetId});
     }
-    await check("/?test","test");
+    await check("/?test","test",process.env.PUBLIC_GAME_URL||base);
     await check("/?online-test","onlineTest");
   }finally{
     clearTimeout(timeout);if(socket)socket.close();browser.kill();

@@ -55,4 +55,6 @@ The browser test requires Microsoft Edge on Windows, or set `BROWSER_PATH` to a 
 - Free hosting can sleep when idle and take time to wake. Public multiplayer is unavailable until the server is deployed. This is invite-room multiplayer, not automatic matchmaking.
 - Optional `ALLOWED_ORIGIN` limits WebSocket connections to one exact game origin. Leave it unset to allow both the Render-hosted game and GitHub Pages.
 
+After committing client updates on `main`, run `npm run publish:pages` to publish the public files without exposing the server. This requires Git author configuration and push access.
+
 All artwork, character models, weapon names, and cosmetics are original. This project is not Fortnite and is not affiliated with Epic Games.
