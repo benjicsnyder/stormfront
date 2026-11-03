@@ -1,0 +1,14 @@
+{
+  "name": "stormfront",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An original first-person battle royale with dedicated human multiplayer",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test server.test.js",
+    "test:browser": "node browser.test.js",
+    "check": "node --check server.js && node --check world.js && node --check online.js && node --check game.js && node --check renderer3d.js && node --check weapons.js"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": { "ws": "^8.18.3" }
+}

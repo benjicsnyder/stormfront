@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stormfront - Last One Standing</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Stormfront first-person 3D battle royale arena"></canvas>
+  <div id="hud" hidden>
+    <header><div class="brand">STORM<span>FRONT</span><small>LAST ONE STANDING</small></div><div class="match"><span id="alive">24 ALIVE</span><span id="kills">0 ELIMINATIONS</span><span id="storm">STORM IN 20s</span></div></header>
+    <div id="notice" role="status"></div>
+    <div id="compass"></div><div id="teamStatus"></div><div id="crosshair">+</div><div id="pickup"></div>
+    <canvas id="map" width="420" height="420" aria-label="Island map: safe zone, battle bus, reboot vans and teammates"></canvas><div id="mapHint">M — MAP</div><div id="nameplates"></div>
+    <div class="bottom"><div class="vitals"><div class="meter"><span>SHIELD</span><div><i id="shield"></i></div><b id="shieldText">50</b></div><div class="meter health"><span>HEALTH</span><div><i id="health"></i></div><b id="healthText">100</b></div></div><div class="inventory"><div class="slot active" id="weaponSlot"><span id="rarity">COMMON</span><strong id="gunName">RIFLE</strong><b id="ammo">30 / 120</b><small id="secondary">2: SIDEARM</small></div><div class="slot">Q <strong>BUILD WALL</strong><b id="wood">100 WOOD</b></div><div class="slot">F <strong>MEDKIT</strong><b id="meds">2 LEFT</b></div></div></div>
+    <div class="help">WASD move · MOUSE look · CLICK fire · RIGHT CLICK aim · E loot · 1/2 swap · SPACE jump / exit bus · G glider · M map · HOLD H reboot · R reload · Q build · F heal · SHIFT sprint · ESC pause</div>
+  </div>
+  <main id="menu">
+    <div class="eyebrow">DROP IN. BUILD UP. SURVIVE.</div>
+    <h1>STORM<span>FRONT</span></h1>
+    <p class="tagline">Real people. Forty guns. One island.</p>
+    <div class="features"><span>⚡ SHRINKING STORM</span><span>▦ BUILD YOUR COVER</span><span>⌖ 40 GUNS · 5 RARITIES</span></div>
+    <label class="mode-label" for="mode">MATCH MODE</label>
+    <select id="mode"><option value="online-solo">ONLINE SOLO — humans only</option><option value="online-duo">ONLINE DUOS — human teammates</option><option value="practice-solo">OFFLINE PRACTICE — AI opponents</option><option value="practice-duo">OFFLINE DUOS PRACTICE — AI teammate</option></select>
+    <div class="connection-fields"><label>USERNAME<input id="username" maxlength="16" placeholder="Choose a username" autocomplete="off"></label><label>SERVER URL<input id="serverUrl" placeholder="https://your-server.onrender.com" autocomplete="url"></label></div>
+    <div id="netStatus" role="status">Create a room and invite friends. No bots fill online matches.</div>
+    <div class="room-actions"><button id="play">CREATE HUMAN ROOM →</button><input id="roomCode" maxlength="6" placeholder="ROOM CODE"><button id="joinRoom" class="subtle">JOIN ROOM</button></div>
+    <div class="menu-extras"><button id="armoryButton" class="subtle">VIEW ALL 40 GUNS</button><button id="shopButton" class="subtle">SKIN SHOP · STORM COINS</button></div>
+    <p class="instructions"><b>Space</b> exits the battle bus · <b>G</b> glider · <b>M</b> map · <b>Hold H</b> reboot teammate<br><b>WASD</b> move · <b>Mouse</b> aim · <b>E</b> loot · <b>1/2</b> swap · <b>Q</b> build · <b>R</b> reload</p>
+    <small class="footnote">Original low-poly artwork. Online matches need at least 2 humans (4 for Duos).<br>Keyboard, mouse, and a WebGL-capable browser required.</small>
+  </main>
+  <div id="result" class="overlay" hidden><div class="card"><div class="eyebrow" id="resultLabel">MATCH COMPLETE</div><h2 id="resultTitle">VICTORY!</h2><p id="resultStats"></p><button id="again">BACK / PLAY AGAIN →</button></div></div>
+  <div id="pause" class="overlay" hidden><div class="card"><div class="eyebrow">ONLINE MATCHES CONTINUE WHILE PAUSED</div><h2>PAUSED</h2><button id="resume">BACK TO THE ARENA →</button><button id="leaveMatch" class="subtle">LEAVE MATCH</button></div></div>
+  <div id="lobby" class="overlay" hidden><div class="card lobby-card"><div class="eyebrow">HUMAN MULTIPLAYER · NO BOTS</div><h2 id="lobbyCode"></h2><p id="lobbyInfo"></p><div id="lobbyMembers"></div><p id="lobbyStatus" role="status"></p><button id="startMatch">START BATTLE BUS →</button><button id="leaveRoom" class="subtle">LEAVE ROOM</button></div></div>
+  <div id="shop" class="overlay" hidden><div class="card armory-card"><div class="eyebrow">COSMETICS ONLY · NO REAL MONEY</div><h2>SKIN SHOP</h2><p id="coinBalance"></p><p>Start with 200 Storm Coins. Completed matches of at least 30 seconds earn 20 coins,<br>or 60 for a win, plus 10 per elimination. Skins never change combat stats.</p><div id="skinList"></div><p id="shopStatus" role="status"></p><button id="closeShop">BACK →</button></div></div>
+  <div id="armory" class="overlay" hidden><div class="card armory-card"><div class="eyebrow">40 DISTINCT WEAPONS</div><h2>THE ARSENAL</h2><p>Every gun can drop as Common, Uncommon, Rare, Epic, or Legendary.<br>Higher rarity improves damage, accuracy, and reload speed.</p><div id="rarityLegend"></div><div id="gunList"></div><button id="closeArmory">BACK →</button></div></div>
+  <div id="error" class="overlay" hidden><div class="card"><h2>3D UNAVAILABLE</h2><p id="errorText"></p></div></div>
+  <script src="config.js"></script>
+  <script src="weapons.js"></script>
+  <script src="renderer3d.js"></script>
+  <script src="online.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

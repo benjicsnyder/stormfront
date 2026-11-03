@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: stormfront-multiplayer
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.23.4"
+      - key: PROFILE_SECRET
+        generateValue: true
