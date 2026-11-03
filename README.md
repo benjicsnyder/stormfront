@@ -8,7 +8,7 @@ An original low-poly, first-person battle royale with **40 distinct guns**, five
 2. Create a room. Share the game URL, server URL, and six-character room code.
 3. Friends join the room. The host starts with at least two humans in Solo or four humans in Duos. Duos pairs players in join order; online matches never add bots.
 
-Start on the battle bus, press **Space** to jump, and use **G** to deploy your glider. It automatically opens near the ground. The map shows the bus route, safe zone, reboot vans, and your team.
+Every online and offline practice match starts inside the flying battle bus cabin. Press **Space** to jump out, use **G** to deploy your glider, and steer with **WASD**. It automatically opens near the ground, and anyone still on the bus is dropped when its 18-second flight ends. The map shows the bus route, safe zone, reboot vans, and your team.
 
 | Controls | Action |
 |---|---|

@@ -52,7 +52,7 @@
   }
   function initialize(selected=$("mode").value) {
     mode=selected.includes("duo")?"duo":"solo"; actors=[]; scenery=[]; walls=[]; loot=[]; traces=[]; teammate=null;
-    elapsed=0;kills=0;buildCooldown=0;kick=0;storm.radius=100;nearby=null;
+    elapsed=0;kills=0;buildCooldown=0;kick=0;storm.radius=100;nearby=null;bus=null;
     for(let i=0;i<65;i++) {
       const x=rand(5,135),z=rand(5,135);
       if(Math.hypot(x-CENTER,z-CENTER)<8) continue;
@@ -90,9 +90,39 @@
   function start(){
     if($("mode").value.startsWith("online")){net.create();return;}
     online=false;bus=null;onlineFinished=false;$("nameplates").replaceChildren();nameLabels.clear();
-    initialize();state="playing";$("menu").hidden=true;$("result").hidden=true;$("pause").hidden=true;$("hud").hidden=false;
-    message(mode==="duo"?"DUOS: CYAN FIGHTER IS YOUR TEAMMATE. NO FRIENDLY FIRE.":"24 FIGHTERS. FIND LOOT. SURVIVE THE STORM.");
+    initialize();boardBus();state="playing";$("menu").hidden=true;$("result").hidden=true;$("pause").hidden=true;$("hud").hidden=false;
+    message("YOU'RE IN THE FLYING BATTLE BUS — SPACE TO JUMP, G TO OPEN YOUR GLIDER");
     lockMouse();
+  }
+  function boardBus(){
+    bus={x:10,y:33,z:70,active:true};
+    for(const a of actors){
+      a.landing={x:a.x,z:a.z};
+      Object.assign(a,{x:bus.x+(a.id%6-2.5)*.9,z:bus.z+(Math.floor(a.id/6)-1.5)*.9,
+        y:31.75,vy:0,yaw:Math.PI/2,pitch:0,onBus:true,dropping:false,glider:false,dropAt:rand(3,15)});
+    }
+    updateHud();
+  }
+  function jumpFromBus(a){
+    if(!a.onBus)return;
+    a.onBus=false;a.dropping=true;a.glider=false;a.vy=0;
+    a.z=bus.z+(a.id%2===0?-3.2:3.2);
+    if(a.human)message("WASD TO STEER — G TO DEPLOY YOUR GLIDER");
+  }
+  function descend(a,dt){
+    if(a.dropping&&a.y<16)a.glider=true;
+    a.vy=a.glider?-3.8:a.vy-18*dt;a.y=Math.max(0,a.y+a.vy*dt);
+    if(a.y>0)return;
+    a.vy=0;
+    if(a.dropping&&blocked(a.x,a.z)){
+      let found=false;
+      for(let radius=.5;radius<8&&!found;radius+=.5)for(let angle=0;angle<TAU;angle+=Math.PI/8){
+        const x=a.x+Math.sin(angle)*radius,z=a.z+Math.cos(angle)*radius;
+        if(!blocked(x,z)){a.x=x;a.z=z;found=true;break;}
+      }
+    }
+    const wasDropping=a.dropping;a.dropping=false;a.glider=false;
+    if(wasDropping&&a.human)message("LANDED — FIND LOOT AND SURVIVE!");
   }
   function pause(value){
     if(!["playing","paused"].includes(state))return;
@@ -118,7 +148,7 @@
     a.meds--;a.hp=Math.min(100,a.hp+50);if(a.human)message("+50 HEALTH");
   }
   function hurt(a,damage,attacker){
-    if(a.hp<=0||attacker&&a.team===attacker.team)return;
+    if(a.hp<=0||a.onBus||attacker&&a.team===attacker.team)return;
     const absorbed=Math.min(a.shield,damage);a.shield-=absorbed;a.hp=Math.max(0,a.hp-damage+absorbed);
     if(a.hp===0){
       loot.push({x:a.x,z:a.z,kind:"gun",weapon:a.weapons[a.slot]},{x:a.x+.6,z:a.z,kind:"ammo"});
@@ -148,7 +178,7 @@
       const t=rayBox(origin,dir,o);if(t<nearest){nearest=t;hit={o};}
     }
     for(const target of actors){
-      if(target===a||target.hp<=0)continue;
+      if(target===a||target.hp<=0||target.onBus)continue;
       const t=rayBox(origin,dir,{x:target.x,y:target.y+.95,z:target.z,w:.62,h:1.9,d:.62});
       if(t<nearest){nearest=t;hit={target};}
     }
@@ -168,7 +198,7 @@
     return hit;
   }
   function discharge(a){
-    const w=a.weapons[a.slot];if(w.ammo<=0||w.reloadLeft>0)return;
+    const w=a.weapons[a.slot];if(w.ammo<=0||w.reloadLeft>0||a.onBus||a.dropping)return;
     w.ammo--;
     const aimed=a.human?input.aim:true;
     for(let i=0;i<w.pellets;i++){
@@ -180,6 +210,7 @@
     if(a.human)kick=1;
   }
   function fire(a){
+    if(a.onBus||a.dropping)return;
     const w=a.weapons[a.slot];
     if(w.cooldown>0||w.reloadLeft>0||w.burstLeft>0)return;
     if(!w.ammo){reload(a);return;}
@@ -203,10 +234,10 @@
     const n=Math.hypot(dx,dz);a.moving=n>0;
     if(!n)return;
     const x=clamp(a.x+dx/n*speed*dt,.4,139.6),z=clamp(a.z+dz/n*speed*dt,.4,139.6);
-    if(!blocked(x,a.z))a.x=x;if(!blocked(a.x,z))a.z=z;
+    if(a.dropping||!blocked(x,a.z))a.x=x;if(a.dropping||!blocked(a.x,z))a.z=z;
   }
   function build(){
-    if(player.hp<=0||buildCooldown>0)return;
+    if(player.hp<=0||player.onBus||player.dropping||buildCooldown>0)return;
     if(player.wood<20){message("NEED 20 WOOD");return;}
     const sideways=Math.abs(Math.sin(player.yaw))>Math.abs(Math.cos(player.yaw));
     const o=box(player.x+Math.sin(player.yaw)*2.5,player.z-Math.cos(player.yaw)*2.5,sideways?.22:3.4,sideways?3.4:.22,2.7,"wall");
@@ -263,23 +294,35 @@
     if(!a.weapons[a.slot].ammo)reload(a);
   }
   function update(dt){
-    elapsed+=dt;storm.radius=Math.max(0,100-Math.max(0,elapsed-20)*.38);
+    elapsed+=dt;storm.radius=Math.max(0,100-Math.max(0,elapsed-(bus?38:20))*.38);
+    if(bus){bus.x=10+Math.min(1,elapsed/18)*120;bus.active=elapsed<18;}
     buildCooldown=Math.max(0,buildCooldown-dt);kick=Math.max(0,kick-dt*7);
     if(kick===0)$("crosshair").classList.remove("hit");
     noticeTime-=dt;if(noticeTime<=0)$("notice").textContent="";
     nearby=null;
     for(const a of actors){
       if(a.hp<=0)continue;
+      if(a.onBus){
+        a.x=bus.x+(a.id%6-2.5)*.9;a.z=bus.z+(Math.floor(a.id/6)-1.5)*.9;a.moving=false;
+        if(!bus.active||!a.human&&(a===teammate?!player.onBus:elapsed>=a.dropAt))jumpFromBus(a);
+        else continue;
+      }
       tickWeapons(a,dt);
       if(a.human){
         const forward=Number(keys.has("KeyW")||keys.has("ArrowUp"))-Number(keys.has("KeyS")||keys.has("ArrowDown"));
         const strafe=Number(keys.has("KeyD")||keys.has("ArrowRight"))-Number(keys.has("KeyA")||keys.has("ArrowLeft"));
         move(a,Math.sin(a.yaw)*forward+Math.cos(a.yaw)*strafe,-Math.cos(a.yaw)*forward+Math.sin(a.yaw)*strafe,dt,
-          input.aim?3.2:keys.has("ShiftLeft")||keys.has("ShiftRight")?9:6);
+          a.dropping?(a.glider?11:8):input.aim?3.2:keys.has("ShiftLeft")||keys.has("ShiftRight")?9:6);
         if(input.fire)fire(a);
+      }else if(a.dropping){
+        const target=a===teammate?player:a.landing;
+        const dx=target.x-a.x,dz=target.z-a.z;
+        a.yaw=Math.atan2(dx,-dz);
+        if(Math.hypot(dx,dz)>1)move(a,dx,dz,dt,a.glider?11:8);else a.moving=false;
       }else bot(a,dt);
-      a.vy-=18*dt;a.y=Math.max(0,a.y+a.vy*dt);if(a.y===0)a.vy=0;
+      descend(a,dt);
       if(dist(a,storm)>storm.radius)hurt(a,dt*(elapsed>200?18:7),null);
+      if(a.y>1)continue;
       for(let i=loot.length-1;i>=0;i--){
         const item=loot[i],d=dist(a,item);
         if(item.kind==="gun"){
@@ -302,7 +345,8 @@
     const watch=followed(),w=watch.weapons[watch.slot],tier=W.rarities[w.rarity];
     $("alive").textContent=mode==="duo"?`${teams().size} TEAMS · ${alive().length} ALIVE`:`${alive().length} ALIVE`;
     $("kills").textContent=`${kills} ELIMINATIONS`;
-    $("storm").textContent=elapsed<20?`STORM IN ${Math.ceil(20-elapsed)}s`:"STORM CLOSING";
+    const stormDelay=bus?38:20;
+    $("storm").textContent=watch.onBus?`BUS DEPARTS IN ${Math.max(0,Math.ceil(18-elapsed))}s`:elapsed<stormDelay?`STORM IN ${Math.ceil(stormDelay-elapsed)}s`:"STORM CLOSING";
     $("health").style.width=`${watch.hp}%`;$("shield").style.width=`${watch.shield}%`;
     $("healthText").textContent=Math.ceil(watch.hp);$("shieldText").textContent=Math.ceil(watch.shield);
     $("gunName").textContent=w.name;$("rarity").textContent=tier.name.toUpperCase();
@@ -320,17 +364,17 @@
       const rarity=W.rarities[nearby.weapon.rarity];$("pickup").textContent=`E — ${rarity.name.toUpperCase()} ${nearby.weapon.name} · replaces slot ${player.slot+1}`;
       $("pickup").style.color=rarity.color;
     }else $("pickup").textContent=dist(watch,storm)>storm.radius?"IN THE STORM — RUN TOWARD THE ISLAND CENTER":"";
-    if(online){
-      if(watch.onBus)$("pickup").textContent="SPACE — JUMP FROM THE BATTLE BUS";
-      else if(watch.dropping)$("pickup").textContent=watch.glider?"GLIDER OPEN · WASD STEER · G TO TOGGLE":"FALLING · G TO DEPLOY GLIDER";
-      else if(player.cards?.length&&latest?.vans.some(v=>dist(player,v)<4.5))$("pickup").textContent=`HOLD H TO REBOOT TEAMMATE · ${Math.floor((player.reboot||0)/6*100)}%`;
+    if(watch.onBus)$("pickup").textContent="YOU'RE IN THE FLYING BUS — SPACE TO JUMP";
+    else if(watch.dropping)$("pickup").textContent=watch.glider?"GLIDER OPEN · WASD STEER · G TO TOGGLE":"FALLING · G TO DEPLOY GLIDER";
+    else if(online){
+      if(player.cards?.length&&latest?.vans.some(v=>dist(player,v)<4.5))$("pickup").textContent=`HOLD H TO REBOOT TEAMMATE · ${Math.floor((player.reboot||0)/6*100)}%`;
       else if(player.cards?.length)$("pickup").textContent="REBOOT CARD COLLECTED — FIND A CYAN VAN ON THE MAP";
     }
   }
   function render(){
     const watch=state==="menu"?player:followed(),eye=[watch.x,watch.y+1.6,watch.z];
     const yaw=state==="menu"?elapsed*.04+.5:watch.yaw,pitch=state==="menu"?-.12:watch.pitch;
-    const aiming=input.aim&&player.hp>0;
+    const aiming=input.aim&&player.hp>0&&!watch.onBus&&!watch.dropping;
     const fov=aiming?(watch.weapons[watch.slot].shape==="sniper"?.48:.85):1.3;
     renderer.begin(eye,yaw,pitch,fov,storm.radius);
     renderer.box(70,-.2,70,140,.4,140,"#579265");
@@ -373,7 +417,7 @@
         if(item.kind==="medkit")renderer.box(item.x,.44,item.z,.2,.04,.06,"#ffffff");
       }
     }
-    for(const a of actors)if(a.hp>0&&a!==watch&&!a.onBus){
+    for(const a of actors)if(a.hp>0&&a!==watch&&(!a.onBus||watch.onBus)){
       renderer.person(a,elapsed,friendly(a)&&a!==player);
       if(a.glider){
         renderer.box(a.x,a.y+3,a.z,3.5,.15,2.3,friendly(a)?"#65d8ff":"#e5b856",-a.yaw);
@@ -381,9 +425,17 @@
       }
     }
     if(bus?.active){
-      renderer.box(bus.x,bus.y,bus.z,9,3,3.5,"#3e82c8");
-      renderer.box(bus.x,bus.y+1.7,bus.z,8.8,.3,3.7,"#e3cf81");
-      for(const side of [-1,1])for(let i=-3;i<=3;i+=1.5)renderer.box(bus.x+i,bus.y+.5,bus.z+side*1.77,1,.9,.03,"#b0e0ec");
+      renderer.box(bus.x,bus.y-1.4,bus.z,9,.25,3.5,"#405467");
+      renderer.box(bus.x,bus.y+1.6,bus.z,9,.2,3.7,"#e3cf81");
+      for(const side of [-1,1]){
+        renderer.box(bus.x,bus.y-.65,bus.z+side*1.8,9,1.4,.12,"#3e82c8");
+        renderer.box(bus.x,bus.y+.3,bus.z+side*1.8,9,.1,.12,"#b0e0ec");
+        for(let i=-4.5;i<=4.5;i+=1.5)renderer.box(bus.x+i,bus.y+.65,bus.z+side*1.8,.10,1.8,.12,"#3e82c8");
+      }
+      for(const end of [-4.5,4.5]){
+        renderer.box(bus.x+end,bus.y-.7,bus.z,.12,1.4,3.5,"#3e82c8");
+        renderer.box(bus.x+end,bus.y+1.1,bus.z,.12,.5,3.5,"#3e82c8");
+      }
       for(const side of [-1,1])for(const end of [-3,3])renderer.box(bus.x+end,bus.y-1.5,bus.z+side*1.8,.9,1,.25,"#273849");
       renderer.box(bus.x,bus.y+9,bus.z,7,8,7,"#65b9e7");
       renderer.box(bus.x,bus.y+5,bus.z,.15,5,.15,"#eee1b2");
@@ -402,8 +454,8 @@
     updateNameplates(watch);
     if(state!=="menu"&&watch.hp>0&&!watch.onBus&&!watch.dropping)renderer.viewGun(watch.weapons[watch.slot],kick,elapsed,watch.moving,aiming,watch.weapons[watch.slot].reloadLeft>0);
     if(watch.glider&&watch.hp>0){
-      renderer.box(watch.x-1.6,watch.y+3,watch.z, .15,.15,3,"#65d8ff");
-      renderer.box(watch.x+1.6,watch.y+3,watch.z, .15,.15,3,"#65d8ff");
+      renderer.box(watch.x,watch.y+3,watch.z,3.5,.15,2.3,"#65d8ff",-watch.yaw);
+      for(const side of [-1,1])renderer.box(watch.x+side*.55,watch.y+2.3,watch.z,.03,1.4,.03,"#eaf0ee");
     }
     drawMap();
   }
@@ -516,7 +568,11 @@
     if(e.code==="KeyF")heal();
     if(e.code==="Digit1")swap(0);
     if(e.code==="Digit2")swap(1);
-    if(e.code==="Space"&&player.y===0)player.vy=6.5;
+    if(e.code==="Space"){
+      if(player.onBus)jumpFromBus(player);
+      else if(player.y===0)player.vy=6.5;
+    }
+    if(e.code==="KeyG"&&player.dropping&&player.y>3)player.glider=!player.glider;
     if(e.code==="KeyE"&&nearby)pickupGun(player,nearby);
   });
   addEventListener("keyup",e=>keys.delete(e.code));
@@ -632,6 +688,35 @@
         initialize("solo");actors.slice(1).forEach(a=>a.hp=0);state="playing";update(.016);
         assert(state==="finished"&&$("resultTitle").textContent==="VICTORY!","solo victory");
         initialize("duo");assert(teams().size===12&&player.hp===100&&walls.length===0&&kills===0,"restart");
+      });
+      test("practice starts inside a flying bus, Space exits, and gliders steer and land",()=>{
+        const selected=$("mode").value;
+        for(const practice of ["practice-solo","practice-duo"]){
+          $("mode").value=practice;start();
+          assert(bus.active&&actors.every(a=>a.onBus)&&player.y===31.75,"practice did not board the bus");
+          const busX=bus.x,ammo=player.weapons[0].ammo;
+          hurt(player,1000,null);input.fire=true;update(.1);input.fire=false;
+          assert(bus.x>busX&&player.hp===100&&player.weapons[0].ammo===ammo&&storm.radius===100,"unsafe bus flight");
+          render();assert(renderer.gl.getError()===renderer.gl.NO_ERROR,"bus cabin render");
+          dispatchEvent(new KeyboardEvent("keydown",{code:"Space"}));
+          assert(!player.onBus&&player.dropping,"Space did not exit bus");
+          dispatchEvent(new KeyboardEvent("keyup",{code:"Space"}));
+          dispatchEvent(new KeyboardEvent("keydown",{code:"KeyG"}));
+          dispatchEvent(new KeyboardEvent("keyup",{code:"KeyG"}));
+          assert(player.glider,"G did not deploy glider");
+          const x=player.x,y=player.y;keys.add("KeyW");update(.1);keys.clear();
+          assert(player.x>x&&player.y<y&&Math.abs(player.y-y)<.5,"glider did not steer or slow descent");
+          if(teammate)assert(!teammate.onBus,"duo teammate did not follow the drop");
+          player.glider=false;player.y=15;update(.04);
+          assert(player.glider,"near-ground automatic glider deployment");
+          render();assert(renderer.gl.getError()===renderer.gl.NO_ERROR,"glider render");
+          for(let i=0;i<200&&player.dropping;i++){player.hp=100;player.shield=100;update(.04);}
+          assert(player.y===0&&!player.glider&&!player.dropping&&!blocked(player.x,player.z),"unsafe glider landing");
+          start();elapsed=17.99;update(.02);
+          assert(!bus.active&&actors.every(a=>!a.onBus),"bus did not automatically eject remaining passengers");
+          start();assert(player.onBus&&bus.active&&elapsed===0,"restart did not return to bus");
+        }
+        $("mode").value=selected;initialize("solo");
       });
       test("real WebGL rendering, visible geometry, shader and GPU validation",()=>{
         initialize("duo");state="playing";

@@ -36,7 +36,7 @@ class World {
     this.actors=players.map((p,i)=>{
       const skin=SKINS.find(s=>s.id===p.skin)||SKINS[0];
       return {id:i,connection:p.id,username:p.username,team:mode==="duo"?Math.floor(i/2):i,
-        x:10+i*.4,z:70,y:35,vy:0,hp:100,shield:50,yaw:Math.PI/2,pitch:0,skin:skin.skin,color:skin.color,
+        x:10+(i%6-2.5)*.9,z:70+(Math.floor(i/6)-1.5)*.9,y:31.75,vy:0,hp:100,shield:50,yaw:Math.PI/2,pitch:0,skin:skin.skin,color:skin.color,
         slot:0,weapons:[W.create(0,1),W.create(20)],wood:100,meds:2,onBus:true,dropping:false,glider:false,
         cards:[],reboot:0,buildCooldown:0,kills:0,connected:true,moving:false,input:{},lastInput:0};
     });
@@ -70,7 +70,7 @@ class World {
     if(name==="jump"){
       if(a.onBus){
         a.onBus=false;a.dropping=true;a.vy=0;
-        a.x=clamp(a.x+Math.sin(a.yaw)*6,.4,139.6);a.z=clamp(a.z-Math.cos(a.yaw)*6,.4,139.6);
+        a.z=70+(a.id%2===0?-3.2:3.2);
       }
       else if(a.y===0)a.vy=6.5;
     }
@@ -168,7 +168,7 @@ class World {
       a.buildCooldown=Math.max(0,a.buildCooldown-dt);
       if(this.elapsed-a.lastInput>.4)a.input={};
       if(a.onBus){
-        a.x=clamp(busX+(a.id%6-2.5)*.9,.4,139.6);a.z=70+(Math.floor(a.id/6)-1.5)*.9;a.y=35;a.moving=false;
+        a.x=clamp(busX+(a.id%6-2.5)*.9,.4,139.6);a.z=70+(Math.floor(a.id/6)-1.5)*.9;a.y=31.75;a.moving=false;
         if(this.elapsed>=18)this.command(a,"jump");
         continue;
       }

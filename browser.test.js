@@ -44,11 +44,34 @@ const assert=require("node:assert/strict");
         const image=await call("Page.captureScreenshot",{format:"png"},sessionId);
         fs.writeFileSync(process.env.BROWSER_SCREENSHOT.replace(".png","-"+attribute+".png"),Buffer.from(image.data,"base64"));
       }
-      console.log("PASS browser "+route+" "+(value.players?value.players+" human connections":"10 gameplay regressions"));
+      console.log("PASS browser "+route+" "+(value.players?value.players+" human connections":"gameplay regressions"));
       await call("Target.closeTarget",{targetId});
     }
     await check("/?test","test",process.env.PUBLIC_GAME_URL||base);
     await check("/?online-test","onlineTest");
+    const {targetId}=await call("Target.createTarget",{url:(process.env.PUBLIC_GAME_URL||base).replace(/\/$/,"")+"/"});
+    const {sessionId}=await call("Target.attachToTarget",{targetId,flatten:true});
+    await call("Runtime.enable",{},sessionId);await call("Page.enable",{},sessionId);
+    for(let i=0;i<100;i++){
+      const ready=await call("Runtime.evaluate",{expression:"Boolean(document.getElementById('play')?.onclick)",returnByValue:true},sessionId);
+      if(ready.result.value)break;
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    await call("Runtime.evaluate",{expression:"document.getElementById('mode').value='practice-solo'; document.getElementById('play').click()",userGesture:true},sessionId);
+    await new Promise(resolve=>setTimeout(resolve,300));
+    const prompt=async()=> (await call("Runtime.evaluate",{expression:"document.getElementById('pickup').textContent",returnByValue:true},sessionId)).result.value;
+    assert.match(await prompt(),/FLYING BUS/);
+    async function capture(suffix){
+      if(!process.env.BROWSER_SCREENSHOT)return;
+      const image=await call("Page.captureScreenshot",{format:"png"},sessionId);
+      fs.writeFileSync(process.env.BROWSER_SCREENSHOT.replace(".png","-"+suffix+".png"),Buffer.from(image.data,"base64"));
+    }
+    await capture("cabin");
+    await call("Runtime.evaluate",{expression:"dispatchEvent(new KeyboardEvent('keydown',{code:'Space'})); dispatchEvent(new KeyboardEvent('keyup',{code:'Space'})); dispatchEvent(new KeyboardEvent('keydown',{code:'KeyG'})); dispatchEvent(new KeyboardEvent('keyup',{code:'KeyG'}))"},sessionId);
+    await new Promise(resolve=>setTimeout(resolve,300));
+    assert.match(await prompt(),/GLIDER OPEN/);assert.deepEqual(errors,[]);
+    await capture("practice-glider");await call("Target.closeTarget",{targetId});
+    console.log("PASS browser actual practice button starts bus cabin; Space and G deploy glider");
   }finally{
     clearTimeout(timeout);if(socket)socket.close();browser.kill();
     for(const c of app.clients.values())c.ws.terminate();
